@@ -1,0 +1,310 @@
+---
+title: "weekly progress"
+author: "Jiajun Li"
+date: "2026-06-13"
+output:
+  pdf_document:
+      number_sections: true
+bibliography: term2.bib
+geometry: "top=20mm, left=20mm, right=20mm, bottom=20mm"
+fontsize: 12pt
+---
+
+\newtheorem{theorem}{Theorem}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# WEEK3
+
+## What I read
+SHapley Additive exPlanations (SHAP), a popular feature-based interpretability method, which can be seamlessly integrated into supervised ML models to gain a deeper understanding of their predictions, thereby enhancing their transparency and trustworthiness. [@poncebobadilla]
+
+<div id="refs"></div>
+
+## What I did
+
+- I have completed all path-related work. My code and the datasets used are located in the python_codes folder.
+
+- All data has now been fully integrated. I am continuing with the data cleaning tasks. 
+
+- I am still learning how to use the new referencing method and the new approach to creating slides.
+
+
+## Questions
+The way dealing with miss values in Patient Health Questionnaire-4 and Pre-existing health conditions
+```{python, eval = FALSE}
+sdate, edate = "2021-02-10", "2021-10-18" 
+consent_gap_mask = (clean_df["endtime"] <= edate) &
+(clean_df["endtime"] >= sdate)
+phq_cols = [f"PHQ4_{i}" for i in range(1, 5)]
+d1_cols = [f"d1_health_{i}" for i in list(range(1, 14)) + [98, 99]]
+cols_to_fill = phq_cols + d1_cols
+clean_df.loc[consent_gap_mask, cols_to_fill] 
+= clean_df.loc[consent_gap_mask, cols_to_fill].fillna("N/A")
+```
+To avoid losing valuable information by dropping these rows entirely, would it be acceptable to adopt an approach similar to Ryan et al. (Codes above is my own work based on their approach)? 
+
+## Question 2
+- Regarding model interpretability mentioned in your last email, is the MLP + SHAP approach unacceptably hard to interpret? I originally thought it was quite reasonable. 
+- If I need to switch back to RF and XGBoost, my extended work will only consist of adding the vaccine and case datasets. Do you think that would make the project too simple?
+
+## Plan for next week
+- Complete data cleaning and preprocessing, and moving on to the modeling part.
+
+# WEEK4
+## Answers to the questions from recent emails
+
+- Whether to expand the research scope
+I plan to allocate my time towards a more detailed explanation of existing framework. This includes detailing the specific reasons for data processing steps and improving the interpretation of the SHAP values.
+
+- Missing data imputation
+I carried out a brief experiment after setting up the model. Moving forward, I will use the  'NA' string imputation strategy proposed by Ryan et al.
+
+## What I did
+
+- Introduction of final report.
+
+- Completed with the data cleaning, preporcessing, and data splitings tasks.
+
+- Finished the defination of cross validation and evaluation of models.
+
+- A small experiment: Compare the results of leaving structural missing values as `np.nan` against filling them with an "N/A" string category, or just remove these columns.
+
+## Experiment method
+```{python, eval = FALSE}
+# String Version
+model_df_str = model_df.copy()
+model_df_str[exp_cols] = model_df_str[exp_cols].fillna("N/A")
+
+#NaN Version
+model_df_nan = model_df.copy()
+
+#Drop version
+model_df_drop = model_df.dropna(subset=exp_cols).copy()
+
+```
+For the `model_df` dataset, all systematic missing values within the time period have already been converted to null values.
+
+## Splite
+This section illustrates the main calling sequence for splitting the data. Full implementation details are available in the python_code folder.
+```{python, eval = FALSE}
+split_and_save(processed_nan, "exp_nan")
+split_and_save(processed_str, "exp_str")
+split_and_save(processed_drop, "exp_drop")
+```
+
+
+## Gridsearch settings
+```{python, eval = FALSE}
+grid_xgb = {
+    'learning_rate': [0.05, 0.1, 0.2], 
+    'n_estimators': [100, 250, 500], 
+    'max_depth': [4, 6, 8], 
+    'colsample_bytree': [0.6, 0.8, 1.0]     
+}
+xgb_clf = XGBClassifier(
+  eval_metric='logloss',
+  random_state=SEED,
+  enable_categorical=True
+)
+```
+## Results
+- Based on the results of the experiment, imputing 'NA' string did not affect the model's predictive performance, and removing specific features make changes to the predictions. 
+- Because most models to be evaluated cannot directly handle np.nan values, I will proceed with the string imputation strategy .
+
+###  Model Results
+exp_nan:{'colsample_bytree': 0.6, 'learning_rate': 0.05, 'max_depth': 8, 'n_estimators': 250}
+ Mean ROC AUC of cv:0.898 (0.002)
+ 
+exp_str:{'colsample_bytree': 0.6, 'learning_rate': 0.05, 'max_depth': 8, 'n_estimators': 500}
+ Mean ROC AUC of cv:0.898 (0.002)
+
+exp_drop:{'colsample_bytree': 0.6, 'learning_rate': 0.05, 'max_depth': 8, 'n_estimators': 500}
+ Mean ROC AUC of cv:0.899 (0.002)
+
+## Plan for next week
+- Model tuning.
+- Begin my presentation slides
+- Keep working on my final report
+
+# WEEK5
+
+## What I did
+
+- Faced with the OneDrive sync issue again. It was resolved after trying to reinstall OneDrive once more, but I am not sure if the problem will happen again.
+
+- Finished the presentation slides.
+
+- Reformed the codes, now all codes for my plots are located in plots.ipynb.
+
+- setting up the models, still debugging.
+```{python, eval = FALSE}
+#Logistic Regression
+grid_lr = {
+    'C': [0.01, 0.1, 1, 10], 
+    'penalty': ['L1','l2']
+}
+lr_clf = LogisticRegression(random_state=SEED)
+
+
+
+# Classification Trees
+grid_dt = {
+    'max_depth': [5, 10, 15, 20, None], 
+    'min_samples_leaf': [1, 2, 5, 10], 
+    'min_samples_split': [2, 5, 10] 
+}
+dt_clf = DecisionTreeClassifier(random_state=SEED)
+
+
+#XGBoost
+grid_xgb = {
+    'learning_rate': [0.05, 0.1, 0.2], 
+    'n_estimators': [100, 250, 500], 
+    'max_depth': [4, 6, 8], 
+    'colsample_bytree': [0.6, 0.8, 1.0]     
+}
+xgb_clf = XGBClassifier( eval_metric='logloss', random_state=SEED, enable_categorical=True)
+```
+
+## Plan for next week
+- Attempt to resolve the current model training error; I believe I can fix it on my own.
+- Model tuning and evaluating
+- Try to fix the OneDrive issue (if it actually happens again)
+- Continue writing the report
+
+## Question
+If I am truly unable to resolve the OneDrive issue and it cannot maintain a full version history of my progress, would it be acceptable to manually save my files locally and upload them together as a zip file when submitting the assignment?
+
+# WEEK4
+
+## What I did
+
+- Some basic model tuning and comparisons
+
+- Some plots works
+
+- Presentation
+
+## COVID-19 cases VS. protective behaviors
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{f9.png}
+\label{f:TRex}
+\end{figure}
+
+## Result of model comparisons
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{f8.png}
+\label{f:TRex}
+\end{figure}
+
+
+## Question
+- Results suggest that MLP does not perform as well as XGBoost on this dataset, is this acceptable?
+
+# WEEK7
+
+## What I did
+
+- Deeper model tuning
+- Investigate feature importance
+- Method part of report
+
+## Deeper model tuning
+\footnotesize
+```{python, eval = FALSE}
+grid_mlp = {
+    'lr': [0.0005, 0.001, 0.005],
+    
+    # Layer 1 (Always exists)
+    'module__hidden_size_1': [32, 50, 64],
+    
+    # Layer 2 (0 means 1-layer network)
+    'module__hidden_size_2': [0, 16, 25, 50], 
+    
+    # Layer 3 (0 means max 2-layer network)
+    'module__hidden_size_3': [0, 8, 16], 
+    
+    'module__activation': [nn.ReLU, nn.LeakyReLU, nn.GELU, nn.Tanh],
+    
+    'module__dropout_rate': [0.3, 0.4, 0.5],
+    
+    'optimizer__weight_decay': [0.0, 1e-4]
+}
+```
+
+- The AUCROC is still lower than XGBoost.
+
+## Feature impact distribution (SHAP)
+- I forgot to remove the record number.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f11.png}
+\label{f:TRex}
+\end{figure}
+
+## Plan for next week
+- Refit the models
+- Result section of report
+
+# WEEK8
+## What I did
+
+- All coding parts
+- Method section
+
+## Deeper model tuning
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f8.png}
+\label{f:TRex}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f8b.png}
+\label{f:TRex}
+\end{figure}
+
+## Feature importance
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f10b.png}
+\label{f:TRex}
+\end{figure}
+
+## Feature importance
+
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{f11.png}
+    \label{f:TRex1}
+  \end{minipage}\hfill
+  \begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{f11b.png}
+    \label{f:TRex2}
+  \end{minipage}
+\end{figure}
+
+## Plan for next week
+
+- Do more plots
+- Result section of report
+
+
+## Question
+
+- To what extent do we need to cover the content of the Term1?
+- Am I focusing on the right things in my current methods section in report?

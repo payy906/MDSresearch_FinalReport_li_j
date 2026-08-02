@@ -1,0 +1,56 @@
+---
+title: "week6"
+author: Jiajun Li
+output:
+  beamer_presentation:
+    theme: "Copenhagen"
+    colortheme: "rose"
+bibliography: term2.bib
+date: "2026-07-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# What I did
+
+- Presentation
+
+- Some basic model tuning and comparisons
+
+- Some plots works
+
+
+
+# COVID-19 cases VS. protective behaviors
+- Protective behaviours may track with new case number during specific periods.
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{f9.png}
+\label{f:TRex}
+\end{figure}
+
+# Result of initial model comparisons
+
+- Logistic Regression performed the worst.
+
+- MLP performed only slightly better than the Decision Tree.
+
+- The best-performing model was XGBoost.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.6\textwidth]{f8.png}
+\label{f:TRex}
+\end{figure}
+
+# Plan for next week
+- Conduct better model tuning
+- Investigate feature importance
+- Report
+
+# Question
+- Results suggest that MLP does not perform as well as XGBoost on this dataset, is this acceptable?

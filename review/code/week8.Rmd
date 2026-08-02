@@ -1,0 +1,70 @@
+---
+title: "week8"
+author: Jiajun Li
+output:
+  beamer_presentation:
+    theme: "Copenhagen"
+    colortheme: "rose"
+bibliography: term2.bib
+date: "2026-07-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# What I did
+
+- All coding parts
+- Method section
+
+# Deeper model tuning
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f8.png}
+\label{f:TRex}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f8b.png}
+\label{f:TRex}
+\end{figure}
+
+# Feature importance
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f10b.png}
+\label{f:TRex}
+\end{figure}
+
+# Feature importance
+
+\begin{figure}[htbp]
+  \centering
+  \begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{f11.png}
+    \label{f:TRex1}
+  \end{minipage}\hfill
+  \begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{f11b.png}
+    \label{f:TRex2}
+  \end{minipage}
+\end{figure}
+
+# Plan for next week
+
+- Do more plots
+- Result section of report
+
+
+# Question
+
+- To what extent do we need to cover the content of the Term1?
+- Am I focusing on the right things in my current methods section in report?
+

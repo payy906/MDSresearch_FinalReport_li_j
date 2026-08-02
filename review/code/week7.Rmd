@@ -1,0 +1,66 @@
+---
+title: "week7"
+author: Jiajun Li
+output:
+  beamer_presentation:
+    theme: "Copenhagen"
+    colortheme: "rose"
+bibliography: term2.bib
+date: "2026-07-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# What I did
+
+- Deeper model tuning
+- Investigate feature importance
+- 75% of Method section
+
+# Deeper model tuning
+\footnotesize
+```{python, eval = FALSE}
+grid_mlp = {
+    'lr': [0.0005, 0.001, 0.005],
+    
+    # Layer 1 (Always exists)
+    'module__hidden_size_1': [32, 50, 64],
+    
+    # Layer 2 (0 means 1-layer network)
+    'module__hidden_size_2': [0, 16, 25, 50], 
+    
+    # Layer 3 (0 means max 2-layer network)
+    'module__hidden_size_3': [0, 8, 16], 
+    
+    'module__activation': [nn.ReLU, nn.LeakyReLU, nn.GELU, nn.Tanh],
+    
+    'module__dropout_rate': [0.3, 0.4, 0.5],
+    
+    'optimizer__weight_decay': [0.0, 1e-4]
+}
+```
+
+- The AUCROC is still lower than XGBoost.
+
+# Feature impact distribution (SHAP)
+- I forgot to remove the record number.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.55\textwidth]{f11.png}
+\label{f:TRex}
+\end{figure}
+
+# Plan for next week
+- Refit the models
+- Result section of report
+
+# Question
+
+- Should I include detailed theoretical explanations for every model and method applied in this report?
+
+## Logistic Regression
+Logistic regression is a generalised linear model widely applied in behavioural analysis, that outputs the probability of a target class. Serving as the baseline model, an L2 regularization penalty was introduced to prevent overfitting in the high-dimensional feature space. Specifically, the inverse of regularization strength (parameter C) was searched across a grid of [0.1, 1.0, 10.0].

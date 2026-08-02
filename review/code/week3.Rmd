@@ -1,0 +1,61 @@
+---
+title: "week3"
+author: Jiajun Li
+output:
+  beamer_presentation:
+    theme: "Copenhagen"
+    colortheme: "rose"
+bibliography: term2.bib
+date: "2026-06-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# What I read
+SHapley Additive exPlanations (SHAP), a popular feature-based interpretability method, which can be seamlessly integrated into supervised ML models to gain a deeper understanding of their predictions, thereby enhancing their transparency and trustworthiness. [@poncebobadilla]
+
+<div id="refs"></div>
+
+# What I did
+
+- I have completed all path-related work. My code and the datasets used are located in the python_codes folder.
+
+- All data has now been fully integrated. I am continuing with the data cleaning tasks. 
+
+- I am still learning how to use the new referencing method and the new approach to creating slides.
+
+
+# Question 1
+The way dealing with miss values in Patient Health Questionnaire-4 and Pre-existing health conditions
+```{python, eval = FALSE}
+sdate, edate = "2021-02-10", "2021-10-18" 
+consent_gap_mask = (clean_df["endtime"] <= edate) &
+(clean_df["endtime"] >= sdate)
+phq_cols = [f"PHQ4_{i}" for i in range(1, 5)]
+d1_cols = [f"d1_health_{i}" for i in list(range(1, 14)) + [98, 99]]
+cols_to_fill = phq_cols + d1_cols
+clean_df.loc[consent_gap_mask, cols_to_fill] /
+= clean_df.loc[consent_gap_mask, cols_to_fill].fillna("N/A")
+```
+To avoid losing valuable information by dropping these rows entirely, would it be acceptable to adopt an approach similar to Ryan et al.? (Codes above is my own work based on their approach) Which would allow the models to  use the rest of the available data during this period.
+
+# Question 2
+- Regarding model interpretability mentioned in your last email, is the MLP + SHAP approach unacceptably hard to interpret? I originally thought it was quite reasonable. 
+- If I need to switch back to RF and XGBoost, my extended work will only consist of adding the vaccine and case datasets. Do you think that would make the project too simple?
+
+# Plan for next week
+- Complete data cleaning and preprocessing, and moving on to the modeling part.
+
+# Future
+
+## Model tuning (w3-6)
+Fit four models:Logistic Regression, Classification Trees, XGBoost, and MLPs. 
+For the tree based models, hyperparameters will be tuned with 5-fold cross validation on the training data, with AUC as the optimisation metric. 
+
+## Model comparison (w6-7)
+Compare the four models using AUC, Precision, Recall, Accuracy, and F1 score. The best models will be selected based on predictive performance.
+
+## Interpretation (w7-9/10)
+Investigate the stable important features by SHAP values on the two best performing models.
