@@ -1,0 +1,930 @@
+---
+title: "Research on Driving Factors of COVID-19 Protective Behaviours in Australia"
+subtitle: "STUDENT NO. 1935487"
+author: "Jiajun Li"
+date: "2026-07-18"
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{xurl}
+  - \usepackage{longtable}
+output:
+  pdf_document:
+      number_sections: true
+bibliography: Refs_li_j.bib
+geometry: "top=20mm, left=20mm, right=20mm, bottom=20mm"
+fontsize: 12pt
+---
+
+\newtheorem{theorem}{Theorem}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Project supervisor: Anthony Mays
+
+# Declaration
+
+In submitting this work I am indicating that I have read the University's Academic Integrity Policy. I declare that all material in this assessment is my own work except where there is clear acknowledgement and reference to the work of others. I give permission for this work to be reproduced and submitted to other academic staff for educational purposes.
+
+# Abstract
+During the COVID-19 pandemic, personal protective behaviour, especially wearing masks, played a crucial role in controlling the infection. Although public health policies such as mask mandates significantly changed people's compliance, understanding the behavioural driving factors behind protective behaviours is still important. This study investigated the determinants of COVID-19 protective behaviours in Australia through a two-phase machine learning framework. In the first phase, this study reproduced Ryan et al.'s [@Ryan2025, p.8-15] research, using random forest and XGBoost to classify and predict the protective behaviours before and after the mask mandates. The results showed that prior to the implementation of the mandates, people's protective behaviour was mainly predicted by existing protective habits and frequency of non-household contact. After the mandates, the passage of time (week number) and an individual's willingness to isolate became the main predictive factors. The extension phase introduced a Multi-layer Perceptron (MLP) architecture and the integration of state-level weekly vaccination numbers and confirmed cases, and interpreted the best performing model using SHAP (SHapley Additive exPlanations) values. The experimental results showed that XGBoost outperforms MLP and traditional models in all prediction metrics. The daily number of new cases, mandate status, perceived disease susceptibility, and willingness to isolate serve as strong positive predictors for protective behaviour. Meanwhile, non-household contacts, age, and geographic regions demonstrate distinct predictive associations with behavioural choices.
+
+
+\newpage
+
+# Introduction
+During the COVID-19 pandemic, individual protective behaviours played a crucial role in controlling the spread of the virus [@Guo2024, p.1-2]. Among all protective behaviours, mask wearing was initially recognised as one of the most effective measures [@Eikenberry2020, p.11-13]. To cope with future pandemics, understanding the drivers of protective behaviours, particularly mask wearing, is essential for the design of public health policies.
+
+There have been many studies investigating why people wear masks from various perspectives [@Ryan2025, p.2]. Among these, mandated policy is one of the most important factors, which may lead to a sharp increase in the use of masks [@Haischer2020, p.4-9]. Recently, Ryan et al. [@Ryan2025, p.8-13] investigated the role of face mask mandates in influencing the drivers of protective health behaviours in Australia. However, some key factors have not been considered. For example, the introduction of vaccination may alter individuals' risk perception and behavioural responses [@DeNicolo2022, p.2]. There is a need to understand how different external factors drive behaviour change to inform future public health policy-making.
+
+In order to identify these complex relationships, appropriate modelling approaches are needed. Due to the large amount and complex types of data, this study introduced the MLP model, which has shown good performance in social science behaviour research [@Bagheri2023, p.6-8]. Upon reviewing the literature, there was little existing research applying deep learning to similar datasets within this field.
+
+To address these research gaps, this study integrated vaccination data and COVID-19 case numbers, and applied MLP model to find out whether it could capture complex relationships and identify the key drivers of protective behaviours, especially mask wearing. 
+
+\newpage
+
+# Background
+Previous studies showed that individual protective behaviours are influenced not only by demographic and psychological factors (such as age and risk perception), but are also significantly influenced by policies [@Wismans2022, p.8-10]. In particular, mask mandates have been shown to change key drivers of behaviours. Ryan et al. [@Ryan2025, p.1] showed that protective behaviours are not fixed, but vary depending on the surrounding policy environment.
+
+Furthermore, vaccination rates and COVID-19 case numbers are also important factors affecting protective behaviours, and may influence behaviours in more complex ways. For example, Andersson et al. [@Andersson2021, p.7-9] found a phenomenon called `risk compensation' after vaccination, which decreases perceived risk and influences protective behaviours.
+
+These findings suggest that protective behaviours are influenced by multiple interacting external factors, implying that the relationships may be complex, and therefore require more advanced modelling approaches. Indeed, the success of non-linear models suggests that simple linear models may not be sufficient to fully capture behavioural patterns. Consequently, most existing research relied on tree-based models (e.g., XGBoost) due to their strong performance on tabular data. 
+
+Although these models are highly effective, they may be limited in fully capturing complex interactions [@Rana2023, p.3], which theoretically opens a role for neural networks (NNs). In fact, Multilayer Perceptrons (MLPs) have shown potential in capturing complex nonlinear relationships and variable interactions in social science behaviour research [@Bagheri2023, p.7-9].  
+
+Nevertheless, while some experiments indicate that for most tabular data, GBDTs (gradient-boosted decision trees) outperform neural networks (NNs) [@McElfresh2023, p.7-9], other studies demonstrate that with appropriate regularisation and parameter tuning, MLPs can achieve performance comparable to or even better than tree-based models in complex structured data tasks [@Arlind2021, p.8-9]. Ultimately, the comparative performance of these two types of models on tabular data remains a subject of significant academic debate, as results often vary significantly across different datasets. 
+
+
+In the field of modelling protective behaviour, understanding the driving factors behind the predicted results is as important as the accuracy of the prediction itself. Model interpretation directly provides a basis for policy formulation. Although advanced machine learning architectures such as XGBoost and MLPs show excellent predictive performance when processing complex structured data, their `black box' characteristics pose significant challenges in public health research. 
+
+To address this lack of interpretability, studies are increasingly using SHAP (SHapley Additive exPlanations) values to quantify the contribution of various factors to the model's prediction results. SHAP values were proposed by Lundberg and Lee [@Lundberg2017], and their mathematical foundation is based on cooperative game theory [@Shapley1953, p.4-12]. This method treats each feature (such as mask mandates, vaccination rates, demographic factors, etc.) as one of the `players` and the model's predicted results as the final `payout`. For detailed mathematical formulas and explanations, please refer to \ref{appendix:shap}. By calculating the marginal contribution of each feature across all possible feature arrangements and combinations, SHAP provides a theoretically unified framework for explaining complex models.
+
+Therefore, this study extended the analysis of Ryan et al. [@Ryan2025] by introducing vaccination data and COVID-19 case numbers, applying an MLP model, and finally utilizing SHAP values for model interpretation.
+
+\newpage
+
+# Methods {#methods-section}
+The research adopted a two-phase framework that begins with a reproduction of the study by Ryan et al. [@Ryan2025] and an extended experiment. For the whole study, the primary research questions were:
+
+>- How do vaccination rates and COVID-19 case numbers influence the uptake of protective behaviours in Australia?
+
+>- How does the performance of deep learning models compare to traditional statistical or tree-based models in predicting protective behaviours?
+
+This section details the experimental design and implementation methods of the study for both phases. All the code for reproducing phase is in \texttt{./python\_code/ljj\_pipeline\_term1.ipynb}, all the modeling code for extending phase is in \texttt{./python\_code/ljj\_term2.ipynb}, and the figures for extending phase are generated in  \texttt{./python\_code/plots.ipynb}.
+
+
+## Data Sources
+This section introduces the sources and contents of the data. For detailed processing procedures, please refer to the section 5.2. 
+In terms of data source composition, the reproduction phase used two core datasets (YouGov Behaviour Tracker Dataset & Oxford COVID-19 Government Response Tracker Dataset), while the extension phase expanded the scope to four datasets. This research dataset included:
+
+>- **YouGov Behaviour Tracker Dataset**
+The Imperial College London YouGov Behaviour Tracker dataset [@Jones2020] contains the self-reported survey responses of individuals from 29 countries regarding protective health behaviours against COVID-19 between 2020 and 2022.
+
+>- **Oxford COVID-19 Government Response Tracker Dataset**
+The Oxford COVID-19 Government Response Tracker dataset [@Hale2021] recorded the state level response policies of governments around the world aimed at preventing the spread of COVID-19 from March 2020 to January 2023. 
+
+>- **Pandemic Case Data**
+This study used a consolidated dataset [@Covid19dataStates2023] for COVID-19 case numbers, which compiles and verifies COVID-19 case data from Australian federal, state, and territory health departments. It is only used in the extension phase.
+
+>- **Vaccination Data**
+This study relied on a vaccine dataset compiled by a third-party team [@Covid19dataVaccines2023], including weekly vaccination totals for each state and territory from official health websites, covering January to August 2022. It is only used in the extension phase.
+
+## Data Cleaning, Variable Construction, and Data Preprocessing
+This study preprocessed the datasets based on the methodology of Ryan et al. [@Ryan2025, p.3-6] to meet the input requirements of the models. All raw programming variable names and their corresponding transformations are provided in \hyperref[appendix:variables]{Appendix \ref*{appendix:variables}} (Table \ref*{table:constructed_variables} and Table \ref*{table:yougov_variables}).The specific feature conversion and cleaning steps were divided into eight core steps. At the end of data processing, all categorical variables were converted to dummy variables.
+
+### Government Mandates
+During the COVID-19 pandemic, Australia experienced a variety of enforced orders. Due to the different response measures among local governments, the experience of COVID-19 in each state varied significantly. Therefore, the start time and enforcement of mask mandates varied greatly between different states. In order to evaluate the actual effectiveness of government mandates, this study aligned the data based on the daily mask wearing policy index (0 - `No policy' to 4 - `Required at all times' ) from the OxCGRT dataset [@Hale2021, P.6-8]. 
+
+Following Ryan et al.'s [@Ryan2025, p.3] method, and considering the varying levels and effects of policy implementation, this study calculated the 14-day rolling average of each state's index (daily updated 14-day average of each state's index). When the rolling average of a certain state reached 3 for the first time, it was considered that the region had actually entered a stable period of mandate intervention. Then, the completion time of the individual survey was compared to their regions, and a binary variable representing the mandate status (Table \ref{table:constructed_variables}) was generated for each observation.
+
+### Removal of Features with High Missingness
+For the YouGov dataset, due to multiple item changes during the tracking period of the survey in Australia, some questions were only asked within an extremely short window of time. To prevent the loss of large amounts of valid samples during the cleaning phase due to high missingness in a few features, this study counted the number of missing values for each feature, and same as  Ryan et al.'s [@Ryan2025, P.3] study, set 10,781 as the threshold. Columns with missing values greater than this threshold were considered not in the survey for a long period and were dropped from the dataset.
+
+### Repairing Data Gaps Caused by Survey Changes
+During the data exploration process, it was found that YouGov modified the informed consent terms of the survey between February 10 and October 18, 2021. This led to a significant structural data gap in health related questions during this period, including 18014 respondents. Deleting these records would mean losing eight months of valuable data. To address this, an experiment was designed to evaluate and select the most appropriate missing data strategy by comparing three approaches:
+
+>- **String Imputation:** Filling the gaps with an string category (e.g., 'N/A').
+
+>- **Retaining `np.nan`:** Preserving the structural missing data.
+
+>- **Deletion:** Directly removing the entire rows affected by this systematic missingness. 
+
+To ensure a fair comparison, all three resulting datasets were trained and tested using XGBoost, as it is the only model selected in this study that can handle np.nan.
+
+
+As shown in Table \ref{table:missing_data_comparison}, the experimental results indicate that there is little difference in the performance of the three methods on the training set. Although the cross validation AUC of the deletion approach was slightly higher, its test set performance is slightly lower than the other two approaches.
+
+Because other models in this framework fail to deal with missing values, and deleting these features directly would affect model performance. Finally, this study located this time window and filled in these missing values as independent 'N/A' categories, thus preserving valid samples.
+
+### Processing of Predictive Variables
+The core prediction targets are self protection behaviour and mask wearing. The original survey recorded the frequency of respondents performing a certain behaviour in the past 7 days. This study first constructed a dictionary and measured responses on a five-point scale (from 1 - `not at all` to 5 - `always`). Then, features were divided into three logical branches: 
+
+>- **Mask wearing behaviours:** There are four specific scenarios related to masks ('Worn a face mask outside your home', 'Worn a face mask inside a grocery store/supermarket', 'Worn a face mask inside a clothing/footwear shop', and 'Worn a face mask on public transportation'). Mask wearing behaviour was defined as the median of all scenarios and stored as a continuous scale (Table \ref{table:constructed_variables}). After that, 4 (i.e. `frequently`) was used as the compliance threshold to binarise this feature into a classification label of Yes/No, ensuring a consistent binary outcome definition with the methodology of Ryan et al. [@Ryan2025, p.4].
+
+>- **Protective behaviours:** All self protection scenario scores representing general health behaviours were extracted, including other protective measures from the survey, such as social distancing, hand washing, and coughing covering. Their overall median was calculated as a comprehensive behaviour scale (Table \ref{table:constructed_variables}). The same threshold of 4 or above was used to binarise this feature into the primary classification target (Table \ref{table:constructed_variables}).
+
+>- **Protective features other than masks:** Ryan et al. [@Ryan2025, P.10-12] showed that a person's protective behaviours could strongly predict whether they would wear a mask. To avoid confounding effects from respondents' other hygiene habits when predicting mask behaviour, this study specifically excluded the four mask scenarios mentioned above, calculating the median of all remaining protective behaviours as a continuous feature that strictly measures non-mask hygiene habits (Table \ref{table:constructed_variables}).
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{f3.png}
+\caption{Public compliance between July 2020 and March 2022.
+The data for this figure was generated in \texttt{./python\_code/ljj\_term2.ipynb}, and the plot was generated in \texttt{./python\_code/plots.ipynb}.}
+\label{f3}
+\end{figure}
+The chart \ref{f3} shows the changes in people's protective behaviour from 2020 to 2022 after cleaning and preprocessing, the trends of these two features showed many information. Initially, the protective behaviours other than masks (orange line) were higher than the proportion of mask wearing (blue line). However, in mid-2021, both classes showed a significant increase. In the later stages, the proportion of people wearing masks exceeded other protective behaviours, reaching a high point of nearly 90%. Both variables exhibit similar temporal trends.
+
+
+
+>- **Other protective predictors:** Additionally, this study added three other self-protective features. The first is the average number of non-household contacts (Table \ref{table:yougov_variables}), which was retained as a continuous numerical variable. The remaining two are subjective attitude features: willingness to isolate if unwell and willingness to isolate if directed to do so by a healthcare professional (Table \ref{table:yougov_variables}). These two subjective attitudes were recorded as categorical responses, and transformed into dummy variables prior to modelling. 
+
+### Dimensionality Reduction for Sparse Comorbidity Features
+In the YOUGOV data, comorbidities were scattered among 13 different binary options (Table \ref{table:yougov_variables}), making the data extremely sparse. To improve model efficiency, this study removed all specific disease types and made them into a single consolidated categorical variable indicating the overall status (Table \ref{table:constructed_variables}). 
+
+In addition, the handling of other complication variables was:
+
+>- Respondents who selected 'None of these' were recorded as 'No', 
+
+>- Respondents who selected 'Prefer not to say' was recorded as 'Prefer_not_to_say'
+
+>- Responses within the consent gap window were imputed as 'N/A'
+
+>- Any other confirmed diseases were grouped as 'Yes'.
+
+### Processing of Demographic Variables
+The demographic variables used in this analysis included: 
+
+>- Age
+
+>- Gender (male/female)
+
+>- State (one of the eight states or territories in Australia)
+
+>- Employment status
+
+>- Household size. 
+
+When dealing with household size, the raw data exhibited a clear long-tail distribution, mixed with text responses. To reduce the effect of extreme values on models, this study assigned a value of 8 to all samples answering '8 people or more'. Invalid samples answering 'I don't know' or 'I don't want to disclose' were directly deleted at the end of the cleaning process.
+
+### Processing of Perception, Trust, and Mental Health Variables
+In addition to demographic and behavioural data, this study included subjective variables such as perception of illness threat, trust in government, mental health, and wellbeing. 
+
+>- For perception of illness threat (perceived susceptibility and severity), the original responses were measured on a 7-point scale mixed with text (e.g., 7 - 'Agree' and 1 - 'Disagree'). This study cleaned the text characters and converted them into continuous variables. 
+
+>- Wellbeing (Cantril Ladder), measured on a 10-point scale, was directly retained as a continuous numerical feature.
+
+>- Unordered categorical features (such as trust in government, PHQ-4 mental health features, and comorbidities), dummy coding was applied with `drop_first = True` to remove the baseline group and prevent multicollinearity.
+
+### Vaccination and COVID-19 Case Numbers
+This study used the time of the respondents' survey completion and their geographic location to merge the individual survey records with the corresponding state's vaccination rates and daily new cases. Due to the late appearance of vaccines, all empty values before appearance were filled to 0.
+
+\newpage
+
+## Resampling and Validation Pipeline
+
+### Class Imbalance and Resampling
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{f5.png}
+\caption{The proportion of respondents frequently wearing face masks before and after the implementation of mask mandates.The data for this figure was generated in \texttt{./python\_code/ljj\_term2.ipynb}, and the plot was generated in \texttt{./python\_code/plots.ipynb}.}
+\label{f5}
+\end{figure}
+
+As shown in Table \ref{f5}, the orange bars represent individuals who frequently wore face masks (Yes), where as the blue bars represent those who did not (No). Before the mandates, the proportion of people who did not wear masks was as high as 73.8%, while those who frequently wore masks accounted for only 26.2%, demonstrating an extreme class imbalance. After mandates, this proportion reversed (70.4% wearing vs. 29.6% not wearing). If such imbalanced data is directly used for training, machine learning models may inherently predict the majority class, resulting in low capture ability for the minority class. To overcome this, this study introduced the random over sampler technique to deal with class imbalance.
+
+### Data Splitting and Cross Validation
+After completing data cleaning and feature engineering, the data was split into training and testing sets in an 80:20 ratio, stratified by the value of `during_mandate`. To evaluate the effectiveness of policies across multiple dimensions and ensure the reliability of model training, this study constructed a specific data splitting and cross-validation mechanism.
+
+In terms of validation strategy during training, a single validation set is highly susceptible to the randomness of the initial data split. To prevent overfitting during model training, this study implemented a 5-fold cross validation. This mechanism ensures a robust and unbiased evaluation of model performance [@make6020065, P.1].
+
+Figure \ref{cv} shows a simple demonstration of data splitting and cross validation process in this study. Initially, the dataset was divided into a 'training set' and a 'testing set' in an 80:20 ratio. Then, a 5-fold cross validation was performed within the 'training set' (which was split into 5 equal parts) to find the best hyperparameter combination for the model. During each cross validation fold, one part was set aside as a 'Validation Fold' to verify the actual effectiveness of the parameters under this fold. This process was  repeated 5 times, and the final result was the average of the five validation results.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{cv.png}
+\caption{Schematic illustration of a 5-fold cross-validation framework. 
+Source paper: \scriptsize \url{https://www.mdpi.com/2504-4990/6/2/65}}
+\label{cv}
+\end{figure}
+
+### Construction of Predictive Scenarios
+In both steps of this study, there were two main predictive objectives: mask wearing and general protective behaviour. In the establishment of the scenario, the two parts were different:
+
+>- **Reproduction phase:** During the reproduction phase, to better analyse the impact of mandates on the main driving factors, this study used the mandate status to establish six independent prediction scenarios. Initially, a global baseline model covering the entire time range was established for both targets. Then, using the mandate status, the datasets were strictly divided into before mandates and during mandates.
+
+>- **Extension phase:** In the extension phase, mandate status were seen as a variable rather than a tool for splitting scenarios. Under this section, the overall data was only divided into two parts: predicting mask wearing and predicting general protective behaviour.
+
+## Models
+This chapter introduces all the models specifically used. During the replication phase, this study used logistic regression, classification trees, random forests, and XGBoost. In the expansion phase, MLP was added and random forests was removed.
+
+### Logistic Regression
+Logistic regression is a generalised linear model widely applied in behavioural analysis that outputs the probability of a target class. For specific hyperparameter search space, please refer to \hyperref[table:lr_appendix]{Appendix Table \ref*{table:lr_appendix}.}
+
+### Classification Trees
+Classification trees are supervised learning methods that classify data by constructing a series of binary splits based on entropy or Gini impurity [@Breiman1984, p.126 -130]. This model offers high efficiency and interpretability. For specific hyperparameter search space, please refer to \hyperref[table:ct_appendix]{Appendix Table \ref*{table:ct_appendix}}.
+
+
+
+### Random Forests
+Random Forest is an ensemble method that employs bagging (bootstrap aggregating) [@Breiman1996, p.1-3]. Random Forest generates multiple independent decision trees by resampling the training data with replacement while evaluating a random subset of features at each split node. These features ensure that the results are not completely dominated by strong individual classifiers. For specific hyperparameter search space, please refer to \hyperref[table:rf_appendix]{Appendix Table \ref*{table:rf_appendix}}.
+
+
+### XGBoost
+XGBoost (Extreme Gradient Boosting) is a highly scalable ensemble boosting algorithm. Unlike the parallel structure in random forests, it fits new trees by leveraging the residual information from previous models to continuously optimise subsequent predictions, a process that defines the boosting mechanism [@Chen2016, P.786-789]. For specific hyperparameter search space, please refer to \hyperref[table:xgb_appendix]{Appendix Table \ref*{table:xgb_appendix}}.
+
+
+### MLP Model
+Due to the fact that the training set contains 35848 observations, it may not be sufficient to train extremely complex neural network models. In the extension work, this study introduced a multilayer perceptron (MLP) model to explore the performance of such deep models in this task. 
+MLPs are a class of fully connected feedforward artificial neural network that captures complex non-linear relationships in data. Deeply explaining its complex internal mechanics is beyond my current capability, for comprehensive theoretical details, please consult [@HORNIK1989359, p.363-365]. To optimise the model architecture, this study tuned different network depths by evaluating 1-layer, 2-layer, and 3-layer structures. In each layer, the specific layer size was also tuned. For specific hyperparameter search space, please refer to \hyperref[table:mlp_appendix]{Appendix Table \ref*{table:mlp_appendix}}.
+
+
+## Model Evaluation and Interpretation
+Similar to Ryan et al. [@Ryan2025, p.3-8], the reproduction section in Term 1 compared the performance of logistic regression, classification trees, random forests, and XGBoost on the initial dataset. Rather than using `Optuna` in the initial framework, this study adopted a more intuitive `GridSearchCV` during the hyperparameter tuning stage. This method allowed for the definition of a comprehensive hyperparameter grid prior to tuning. To find the optimal parameter combination, a 5-fold cross validation was applied to the training set, with the grid search explicitly configured to maximise the Area Under the Receiver Operating Characteristic Curve (ROC AUC) as the final refit metric. Since this workflow demonstrated strong performance during reproduction, a similar workflow was created for the extension phase in Term 2, incorporating the MLP model and integrating the cross-validation steps directly into the Imblearn pipeline.
+
+### Evaluation Metrics
+During the model training and testing phases, multiple performance metrics were recorded.The core evaluation metric of this study is the area under the receiver operating characteristic curve (AUC-ROC).This indicator aims to quantify the comprehensive ability of the model to distinguish between positive and negative categories (i.e. groups that adopt protective behaviour and those who do not). An AUC-ROC value approaching 1.0 indicates superior predictive performance.
+
+However, relying only on a single evaluation metric cannot fully reflect the performances of the models. Therefore, this study further introduced Precision, Recall, and F1 Score as auxiliary analysis indicators to provide deeper model insights:
+
+**Precision\eqref{eqn:precision}:** Focuses on evaluating the quality of positive predictions. It represents the proportion of instances that adopted protective behaviours out of all instances predicted as positive by the model.
+
+**Recall\eqref{eqn:recall}:** Focuses on evaluating the model's ability to capture target classification. It measures the proportion of actual positive instances (those who took protective actions) that were successfully classified by the model.
+
+**F1 Score\eqref{eqn:f1score}:** In practical applications, there is often an inherent trade-off between precision and recall. The F1 score, as the harmonic mean of the two, provides a balanced single evaluation value to more objectively reflect the overall predictive robustness of the model.
+
+### Model Interpretation
+In the reproduction phase, feature importance was directly extracted from the best model identified by `GridSearchCV` (where the model was refitted on the entire training set using the best parameters). 
+
+In the expansion phase, this study aimed to obtain more detailed information on the importance of features, especially to clearly see the direction, whether the prediction probability increases or decreases when the features become larger. To achieve this goal, the Shapley Additive exPlanations (SHAP) value is introduced. For detailed mathematical formulas and explanations, please refer to \ref{appendix:shap}.
+
+
+
+
+\newpage
+
+# Results
+
+## Reproduction Results
+This section presents the results of the reproduction phase.
+
+### Model Performance and Selection
+Following the hyperparameter tuning and 5-fold cross validation procedures, the predictive models were evaluated. The results are shown in the Table \ref{tab:model_performance}.Given the comparable performance and distinct strengths of both XGBoost and random forest, their feature importances are jointly analysed in the subsequent section.
+
+### Comparison of Key Predictors Before and After Mandate Periods
+
+#### Face Mask
+Feature importances were directly extracted from the optimal random forest (Figure \ref{t11}) and XGBoost (Figure \ref{t12}) models identified through GridSearchCV, both of which were refitted on the entire training set. The left hand panel displays the feature importance before face mask mandates started and the right hand panel shows the feature importance after face mask mandates start. The bars are coloured based on the category of the feature as defined in the legend.
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{t11.png}
+\caption{The top influential features when predicting face mask wearing, other than state, using a random forest model. The plot was generated in \texttt{./python\_code/ljj\_pipeline\_term1.ipynb}.}
+\label{t11}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{t12.png}
+\caption{The top influential features when predicting face mask wearing, other than state, using an XGBoost model. The plot was generated in \texttt{./python\_code/ljj\_pipeline\_term1.ipynb}.}
+\label{t12}
+\end{figure}
+
+#### Protective Behaviour
+Feature importances of protective behaviours were directly extracted from the optimal random forest (Figure \ref{t13}) and XGBoost (Figure \ref{t14}) models identified through GridSearchCV, both of which were refitted on the entire training set. The left hand panel displays the feature importance before face mask mandates started and the right hand panel shows the feature importance after face mask mandates start. The bars are coloured based on the category of the feature as defined in the legend.
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{t13.png}
+\caption{The top influential features when predicting face mask wearing, other than state, using an XGBoost model. The plot was generated in \texttt{./python\_code/ljj\_pipeline\_term1.ipynb}.}
+\label{t13}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{t14.png}
+\caption{The top influential features when predicting general protective behaviours, other than state, using an XGBoost model. The plot was generated in \texttt{./python\_code/ljj\_pipeline\_term1.ipynb}.}
+\label{t14}
+\end{figure}
+
+
+## Extension Results
+This section demonstrates and explains the performance of the models, the results of model selection, and the comparison of key predictors of extension phases.
+
+### Imputation Experiment
+
+To evaluate the missing data strategies for the structural gap, an experiment was conducted comparing three approaches: retaining \texttt{np.nan}, string imputation, and row deletion. Each dataset variant was trained and evaluated using an XGBoost model predicting the face mask target. 
+
+Table \ref{table:missing_data_comparison} presents the resulting mean cross-validation (CV) ROC AUC scores, along with their standard errors, and the test ROC AUC scores for each of the three handling strategies.
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{ l c c }
+ \toprule
+ \textbf{Missing Data Strategy} & \textbf{CV ROC AUC (Train)} & \textbf{Test ROC AUC} \\ 
+ \midrule
+ Retaining \texttt{np.nan} & 0.911 (0.001) & 0.914 \\ 
+ String Imputation & 0.911 (0.001) & 0.914 \\ 
+ Deletion & 0.912 (0.002) & 0.912 \\ 
+ \bottomrule
+\end{tabular}
+\caption{Performance comparison of different missing data handling strategies on the face mask target using XGBoost. The data was generated in \texttt{./python\_code/ljj\_term2.ipynb}}
+\label{table:missing_data_comparison}
+\end{table}
+
+
+### Model Performance and Selection
+To evaluate the predictive performance for the face mask wearing and protective behaviours, four models were trained and evaluated using cross-validation. 
+
+Table \ref{table:face_mask_performance} and Table \ref{table:protective_behaviour_performance} present the resulting cross-validation metrics along with their corresponding standard errors (SE) for both prediction scenarios. 
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{ l c c c c } 
+ \toprule
+ \textbf{Model} & \textbf{AUC-ROC} & \textbf{Precision} & \textbf{Recall} & \textbf{F1 Score} \\ 
+ \midrule
+ Logistic Regression & 0.796 (0.001) & 0.741 (0.001) & 0.767 (0.002) & 0.754 (0.001) \\ 
+ Decision Tree       & 0.877 (0.002) & 0.834 (0.003) & 0.808 (0.003) & 0.821 (0.001) \\ 
+ XGBoost             & 0.911 (0.001) & 0.857 (0.002) & 0.846 (0.002) & 0.851 (0.002) \\ 
+ MLP                 & 0.882 (0.001) & 0.865 (0.002) & 0.730 (0.003) & 0.792 (0.002) \\ 
+ \bottomrule
+\end{tabular}
+\caption{Model performance for face mask wearing prediction based on cross-validation. Values in parentheses represent the standard errors (SE) from cross-validation. The data for this table was generated in \texttt{./python\_code/ljj\_term2.ipynb}.}
+\label{table:face_mask_performance}
+\end{table}
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{ l c c c c } 
+ \toprule
+ \textbf{Model} & \textbf{AUC-ROC} & \textbf{Precision} & \textbf{Recall} & \textbf{F1 Score} \\ 
+ \midrule
+ Logistic Regression & 0.721 (0.001) & 0.774 (0.002) & 0.697 (0.007) & 0.734 (0.003) \\ 
+ Decision Tree       & 0.768 (0.001) & 0.809 (0.002) & 0.697 (0.005) & 0.749 (0.002) \\ 
+ XGBoost             & 0.832 (0.001) & 0.829 (0.001) & 0.791 (0.003) & 0.809 (0.002) \\ 
+ MLP                 & 0.789 (0.002) & 0.872 (0.002) & 0.551 (0.003) & 0.676(0.003) \\ 
+ \bottomrule
+\end{tabular}
+\caption{Model performance for protective behaviour prediction based on cross-validation. Values in parentheses represent the standard errors (SE). The data for this table was generated in \texttt{./python\_code/ljj\_term2.ipynb}.}
+\label{table:protective_behaviour_performance}
+\end{table}
+
+
+### Key Predictors
+Due to the best performance of XGBoost models, this study analysed their SHAP values. This section includes the most important factors in mask wearing (Figure \ref{f10}) and protective behaviour (Figure \ref{f10b}). 
+The features in the figure are arranged in descending order of their global importance to the model output. The SHAP value on the horizontal axis represents the direction and degree of the influence of features on the prediction results. The colour of the data point represents the original numerical size of the feature (red represents high values, blue represents low values).
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{f10.png}
+\caption{SHAP summary plot for the XGBoost model predicting mask wearing behaviour. Features are ranked by global importance from top to bottom. The colour represents the feature value, and the x-axis indicates the directional impact on the model's prediction. The data for this figure was generated in \texttt{./python\_code/ljj\_term2.ipynb}, and the plot was generated in \texttt{./python\_code/plots.ipynb}.}
+\label{f10}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{f10b.png}
+\caption{SHAP summary plot for the XGBoost model predicting protective behaviour. Features are ranked by global importance from top to bottom. The colour represents the feature value, and the x-axis indicates the directional impact on the model's prediction. The data for this figure was generated in \texttt{./python\_code/ljj\_term2.ipynb}, and the plot was generated in \texttt{./python\_code/plots.ipynb}.}
+\label{f10b}
+\end{figure}
+
+
+\newpage
+
+
+# Discussion
+This study analysed the driving factors of Australian's protective behaviours during the COVID-19 pandemic through a two-stage framework based on Ryan et al.'s study [@Ryan2025]. In the data processing stage, this study validated the significant impact of public health mandates on driving factors to protective behaviours.  Mask wearing increased significantly after mandates began. This matched Ryan et al.'s study, showing that strict policies increase public compliance [@Ryan2025, P.1].
+
+## Reproduction Phase
+This study successfully reproduced the core predictive framework of Ryan et al.[@Ryan2025]. 
+
+### Model performance
+Based on the evaluation results presented in Table \ref{tab:model_performance}, the models' performance in predicting mask wearing and protective behaviours before mandates was lower than that of Ryan et al.'s [@Ryan2025, P.10] study. 
+
+XGBoost achieved the highest AUC scores across all scenarios (e.g., reaching 0.897 for face mask wearing during mandates). Additionally, random forest excelled at generating precise predictions, achieving high F1 scores for both face mask behaviour (0.896) and general protective behaviour (0.864) during mandates. Subsequently, the final predictive performance of random forest and XGBoost was validated in the final testing set (Table \ref{tab:test_performance}). The results closely mirrored the macro trends observed from the refitting on the training set. Therefore, these two models were selected for subsequent model interpretation, and their built-in feature importance attributes were used. 
+
+Analysis also confirmed that the implementation of mask mandates has changed the driving structure of public behaviour, and the results of all mask wearing models were better. Many factors have became more important after the implementation of the mandate, especially the individual isolation willingness factors in predicting protective behaviours.
+
+### Face Mask 
+As shown in Figure \ref{t11}, before the mandates, protective behaviour and age were the top two predictors in the random forest. Interestingly, the XGBoost (Figure \ref{t12}) heavily highlighted protective behaviour, with its relative importance far exceeding all other features. Week number also played significant roles in both models.
+
+The introduction of mandates did not significantly change the core composition of the driving factors for mask-wearing, though it did cause minor changes in rankings.  After mandates, week number became an important feature, ranking first in the random forest and second in XGBoost. A notable shift in the XGBoost model was the rise in the importance of willingness to isolate, while protective behaviour remained crucial across both models. Demographics such as age and household size continued to contribute, but their relative influence was decreased compared to the pre-mandate period.
+
+### Protective Behaviours
+
+
+For general protective behaviour before the mandates, Figure \ref{t13} and Figure \ref{t14} indicate that non-household contacts were the most important feature across both models. In the random forest (Figure \ref{t13}), the subsequent top features were perceived susceptibility, age and week number. In the XGBoost (Figure \ref{t14}), perceived susceptibility ranked second, and also driven by several isolation-related features such as Isolate if unwell (not sure) and varying degrees of willingness to isolate.
+
+After mandates, the ranking of some features shifted. In the random forest model, week number surged to become one of the most important features, ranking just below non-household contacts. Age and perceived susceptibility still remained within the top four. In the XGBoost, willingness to isolate (very willing) jumped to the highest rank, far exceeding the importance scores of all other variables. 
+
+
+## Extension Phase
+During literature review, it was found that MLP models showed inconsistent performance compared to XGBoost. To explore potential predictive improvements, an MLP model was introduced in this stage. Due to the black box characteristics of deep models and the desire of this study to obtain the impact direction of each feature on the final results, the SHAP value was introduced. To address the limitations noted in Ryan et al.'s study [@Ryan2025], vaccines and case numbers were also introduced in this stage, and the way of scenarios construction was changed.
+
+In response to the structural data missing in long-term surveys, imputation experiments during the extension phase showed that directly using string imputation is the optimal strategy for processing this dataset. This method maintains the model's generalisation ability on independent test sets (AUC=0.914) while avoiding removing more than 18000 valid samples.
+
+### Answer to Research Questions
+Revisiting the two core [research questions](#methods-section) initially proposed, the results of feature interpretation show significant differences in predictive importance:
+
+>- **Case Number:** The number of new cases has been proven to be a crucial predictive indicator, contributing substantially to the final prediction results of the model
+
+>- **Vaccine:** The impact of vaccine dosage is minimal, making only an extremely weak negative contribution to the model's output.
+
+Additionally, regarding model evaluation, the model comparison results showed that XGBoost outperformed MLP in comprehensive prediction performance (AUC and F1 score) in all scenarios. Although MLP achieved a high Precision rate (0.865) in predicting mask wearing, its recall rate (0.730) showed a significant decline. This indicates that the Gradient Boosting Tree (GBDT) architecture has better robustness and fitting efficiency than standard feedforward neural networks when dealing with this dataset.
+
+
+
+### Model performance
+Regarding the core findings mentioned above, the following is a detailed explanation and discussion. According to the model evaluation results for two scenarios during the extension phase (Table \ref{table:face_mask_performance} and Table \ref{table:protective_behaviour_performance}), it can be seen that all models had very small fluctuations in performance on different folds (standard errors are between 0.001 and 0.007). This proved that the training process of each model was stable. Overall, the AUC-ROC values across all models for mask wearing are consistently higher than those for protective behaviour, which was consistent with the results from the reproduction phase.
+
+XGBoost showed an advantage in all indicators. Its AUC-ROC reached 0.911 and F1 score was as high as 0.851, surpassing the other three models, proving the powerful ability to capture complex nonlinear relationships in the current dataset. In contrast, logistic regression, as the baseline model, performed the weakest with an AUC-ROC of only 0.796 in predicting face mask wearing.
+
+
+Finally, XGBoost maintained excellent AUC-ROC scores on the test sets for both scenarios (0.914 for mask wearing and 0.832 for protective behaviour), proving that the model successfully avoided overfitting.
+
+### Feature Importance
+
+By introducing SHAP values, the contribution direction and magnitude of each feature were clarified . The number of vaccines added in this phase did not show a strong predictive association and had a negative contribution to protective behaviour.
+
+At the regional level, residing in New South Wales and Victoria was highly associated with doing protective behaviours, while Western Australia and Tasmania exhibited extremely strong negative correlations. This objectively reflected the disconnect in public behaviour among Australian states during the pandemic due to differences in local pandemic severity and border control policies.
+
+### Face Mask 
+Features that contribute the most to model prediction are protective behaviours, mandate status, week number, daily case numbers, whether the respondent lived in Victoria, and age. Based on the distribution of chart data, the specific results are detailed as follows:
+
+**Positive Predictors:** 
+
+>- Behavioural and policy factors: 
+High scores for protective behaviour (red dots) and data during the period of mask mandate (Mandatory Period, red dots) are heavily distributed on the right side (SHAP value>0). This indicates that these two features will significantly increase the probability of the model predicting 'wearing a mask'.
+
+>- The severity of the pandemic and psychological perception: 
+Higher daily new cases, as well as higher perceived susceptibility and perceived severity, with high-value data points (red) also concentrated on the right side of the plot, hmake a positive contribution to the model output.
+
+**Negative Predictors:** 
+
+>- Demographic factors: 
+In the distribution of age, samples from the older age group (red dots) are significantly concentrated on the left side of the plot (SHAP value<0), while samples from the younger age group (blue dots) are mainly distributed on the right side. This indicates that in the model, increasing age s negatively associated with the prediction of wearing masks.
+
+**State Variables:**
+In the reproduction phase, similar to Ryan et al.[@Ryan2025. p.10-11], this study discarded the state variable. In order to investigate the extent to which these variables affect the model's prediction results, they were not removed during the extension phase. The variable of the respondent's location has a completely different associations with the model output:
+
+>- Living in  Victoria and New South Wales (red dots, where the feature value is 1) are mainly distributed in areas greater than 0, showing a positive predictive contribution.
+
+>- Living in Western Australia and Tasmania (red dots, where the feature value is 1) show a clear extreme tail (SHAP values<-1 or even -2) on the left side of the coordinate axis, objectively indicating that these two regional features have a strong negative contribution on the prediction of mask wearing.
+
+### Protective Behaviours
+
+Based on Figure \ref{f10b}, features that contribute the most to model prediction are perceived susceptibility, non-household contacts, case numbers, week number, willingness to isolate (Very willing), and whether live in Victoria. The specific results are detailed as follows:
+
+**Positive Predictors:** 
+
+>- Psychological perception and willingness factors: 
+Data with high perceived susceptibility and strong Willingness to Isolate (red dots) are highly concentrated on the right side of the plot (SHAP value>0). The increase in these values will increase the probability of the model predicting 'adopting protective behaviour'.
+
+>- Pandemic environment and policies: 
+High daily new cases and during the mandatory mask period are also concentrated on the right side of the SHAP zero line, which has a positive contribution on the model output.
+
+**Negative Predictors:** 
+
+>- Social behaviour characteristics:
+In the distribution of non-household contacts feature, samples with more contacts (red dots) are clearly concentrated on the left side of the plot (SHAP value<0), while samples with fewer contacts (blue dots) are widely distributed on the right side. 
+
+>- Demographic factors: 
+In terms of gender attributes, the high-value points (red) representing male respondents are mainly concentrated on the left side of the zero line, showing that this feature has a negative contribution on the result of this model.
+
+**State Variables:**
+Similar to mask wearing, different states also show clear directional differences in predicting protective behaviour:
+
+>- Living in Victoria and New South Wales (red dots, where the feature value is 1) are mainly distributed in areas greater than 0, showing a positive driving association.
+
+>- Respondents living in Western Australia show a clear extreme tail (SHAP value below -1) on the left side, indicating a negative association on predicting protective behaviour.
+
+
+## Suggestions for future research
+Due to the impact of time and computing power, there is still some room for expansion and direction in this study. Here are several directions for expansion:
+
+>- Currently, vaccines are only merged in different states. However, observing public behaviour before and after vaccine rollouts could reveal differing effects. 
+
+>- Introducing more detailed vaccine (eg. types, vaccinable conditions) data may change the importance of this variable category. 
+
+>- The current number of vaccines and case numbers is calculated by state, but people's willingness may be more easily influenced by the situation in the surrounding community, and more detailed regional data may bring different effects.
+
+>- Adding data from other countries to see if the conclusion can be established in other countries.
+
+Also, due to my limited background knowledge, I am currently unable to fully explain some of the phenomena observed in this study.
+
+>- Why MLP performed poorly in this study, especially with lower recall values.
+
+>- Why XGBoost performed better than all models in all scenarios.
+
+
+\newpage
+
+# References
+
+<div id="refs"></div>
+
+# Appendix
+
+## Data Sources
+\label{appendix:data_sources}
+
+This section introduces the sources and detailed contents of the data. 
+
+### YouGov Behaviour Tracker Dataset
+The Imperial College London YouGov Behaviour Tracker dataset [@Jones2020] contains the self-reported survey responses of individuals from 29 countries regarding protective health behaviours against COVID-19 between 2020 and 2022. The survey included demographic and psychological factors (such as gender and age), protective behaviours (such as mask wearing and social distancing), comorbidities, and more features. As this study focuses on the situation in Australia, only the Australian subset of this dataset is used.
+
+### Oxford COVID-19 Government Response Tracker Dataset
+The Oxford COVID-19 Government Response Tracker dataset [@Hale2021] records the state level response policies of governments around the world aimed at preventing the spread of COVID-19 from March 2020 to January 2023. The recorded policies include containment and closure, economic, healthcare, vaccination, and other general policies.  This dataset is used for the mandate period split.
+
+### Pandemic Case Data
+Reporting of COVID-19 cases varied across each state and territory in Australia. Hence, this study uses a consolidated dataset [@Covid19dataStates2023] for COVID-19 case numbers, which compiles and verifies COVID-19 case data from Australian federal, state, and territory health departments. The data records daily confirmed cases at state and territory level granularity, covering the period from January 2020 to August 2023. It is only used in the extension phase.
+
+### Vaccination Data
+Since the Australian government has not released detailed vaccination data for each state on a weekly basis, this study relied on a vaccine dataset compiled by a third-party team [@Covid19dataVaccines2023] to match the timing and locations of the YouGov survey. This dataset collects weekly vaccination totals for each state and territory from official health websites, covering January to August 2022. It is only used in the extension phase.
+
+## Data Processing Variables Summary
+
+\label{appendix:variables}
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\setlength{\LTcapwidth}{15cm}
+\begin{tabular}{|p{4.2cm}|p{2.2cm}|p{8.6cm}|} 
+ \hline
+ \textbf{Code Name} & \textbf{Type} & \textbf{Description \& Processing Logic} \\ 
+ \hline
+ \texttt{week\_number} & Continuous & Number of weeks elapsed since the start of the survey period, calculated from \texttt{endtime}. \\ 
+ \hline
+ \texttt{face\_mask\_scale} & Continuous & Median score (1-5 scale) of the four face mask wearing scenarios. \\ 
+ \hline
+ \texttt{face\_mask\_bi} & Binary & Target classification label for mask wearing ('Yes' if \texttt{face\_mask\_scale} $\geq$ 4, else 'No'). \\ 
+ \hline
+ \texttt{protective\_} \newline \texttt{behaviour\_scale} & Continuous & Median score (1-5 scale) of all general protective health behaviours (\texttt{i12\_} prefix). \\ 
+ \hline
+ \texttt{protective\_} \newline \texttt{behaviour\_bi} & Binary & Target classification label for general protective behaviour ('Yes' if scale $\geq$ 4, else 'No'). \\ 
+ \hline
+ \texttt{protective\_} \newline \texttt{behaviour\_} \newline \texttt{nomask\_scale} & Continuous & Median score (1-5 scale) of protective behaviours specifically excluding mask-related scenarios. \\ 
+ \hline
+ \texttt{protective\_} \newline \texttt{behaviour\_} \newline \texttt{nomask\_bi} & Binary & Target classification label for non-mask protective behaviour ('Yes' if scale $\geq$ 4, else 'No'). \\
+ \hline
+ \texttt{comorbidity\_status} \newline (Mapped: \texttt{d1\_} \newline \texttt{comorbidities\_}) & Categorical & Consolidated from 13 sparse binary disease options (\texttt{d1\_health\_1} to 99) into a single feature. \\ 
+ \hline
+ \texttt{at\_least\_3\_doses} & Continuous & Total weekly number of individuals with at least 3 vaccine doses, merged based on the respondent's state. \\ 
+ \hline
+ \texttt{daily\_cases} & Continuous & Daily confirmed COVID-19 cases matched to the respondent's state and survey completion date. \\ 
+ \hline
+ \texttt{during\_mandate} & Binary & Derived from OxCGRT data; set to 1 if the 14-day rolling average of the state's facial covering index reached 3. \\ 
+ \hline
+\end{tabular}
+\caption{Constructed variables engineered from raw survey data or external macro datasets during the preprocessing stage.}
+\label{table:constructed_variables}
+\end{table}
+
+\vspace{1.5em}
+
+\begingroup
+\renewcommand{\arraystretch}{1.4}
+\setlength{\LTcapwidth}{15cm}
+\begin{longtable}{|p{3.2cm}|p{4.5cm}|p{7.3cm}|}
+
+
+\hline
+\textbf{Code Name} & \textbf{Name in Plots} & \textbf{Description} \\ 
+\hline
+\endfirsthead
+
+
+\hline
+\textbf{Code Name} & \textbf{Name in Plots} & \textbf{Description} \\ 
+\hline
+\endhead
+
+
+\hline 
+\endfoot
+
+
+\hline
+\caption{Original YouGov survey features and their mapped names in plots retained from the Imperial College London YouGov Behaviour Tracker dataset.}
+\label{table:yougov_variables} \\
+\endlastfoot
+
+
+\texttt{age} & Age & Demographic feature indicating respondent's age. \\ 
+\hline
+\texttt{endtime} & End Time & Raw survey feature indicating the exact date and time the respondent completed the survey. \\
+\hline
+\texttt{gender} & Gender & Demographic feature indicating respondent's gender. \\ 
+\hline
+\texttt{state} & State & Geographic location in Australia (e.g., Victoria, NSW). \\ 
+\hline
+\texttt{household\_size} & Household Size & Number of people in the household (capped at 8). \\ 
+\hline
+\texttt{cantril\_ladder} & Cantril Ladder & Self-reported wellbeing measured on a 10-point scale. \\ 
+\hline
+\texttt{r1\_1} & Perceived Susceptibility & Subjective perception of illness threat/susceptibility. \\ 
+\hline
+\texttt{r1\_2} & Perceived Severity & Subjective perception of illness severity. \\ 
+\hline
+\texttt{i2\_health} & Non-Household Contacts & Average number of physical contacts outside the household. \\ 
+\hline
+\texttt{employment\_} \newline \texttt{status} & Employment Status & Unordered categorical feature indicating employment condition. \\ 
+\hline
+\texttt{WCRex1} & Government Handling & Perception of government's handling of the pandemic. \\ 
+\hline
+\texttt{WCRex2} & Confidence in response & Confidence in the healthcare system's response. \\ 
+\hline
+\texttt{i9\_health} & Isolate If Unwell & Willingness to isolate if experiencing symptoms. \\ 
+\hline
+\texttt{i11\_health} & Willingness To Isolate & Willingness to isolate if directed by a healthcare professional. \\ 
+\hline
+ \texttt{i12\_health\_1} to \newline \texttt{i12\_health\_25} & Specific Protective \newline Behaviours & Raw survey indicators measuring the frequency of specific protective health behaviours (e.g., hand washing, social distancing, mask wearing) over the past 7 days. \\
+ \hline
+\texttt{PHQ4\_1} & Little interest or pleasure & Patient Health Questionnaire: Loss of interest. \\ 
+\hline
+\texttt{PHQ4\_2} & Feeling down or depressed & Patient Health Questionnaire: Depressive mood. \\ 
+\hline
+\texttt{PHQ4\_3} & Feeling nervous or \newline anxious & Patient Health Questionnaire: Anxiety level. \\ 
+\hline
+\texttt{PHQ4\_4} & Worrying & Patient Health Questionnaire: Uncontrollable worry. \\ 
+\hline
+\texttt{d1\_health\_1} to \newline \texttt{d1\_health\_13} & Specific Comorbidities & 13 individual binary features indicating the presence of specific underlying medical conditions (e.g., asthma, diabetes, heart disease). \\ 
+\hline
+\texttt{d1\_health\_98} & Prefer not to say \newline (Comorbidities) & Raw survey indicator for respondents who preferred not to disclose their medical conditions. \\ 
+\hline
+\texttt{d1\_health\_99} & None of these \newline (Comorbidities) & Raw survey indicator for respondents who reported having none of the listed medical conditions. \\ 
+
+\end{longtable}
+\endgroup
+
+## Model Evaluation Metrics
+
+To rigorously evaluate the classification performance of our predictive models, this study used standard metrics derived from the confusion matrix. The fundamental components of the confusion matrix include True Positives ($TP$), False Positives ($FP$), True Negatives ($TN$), and False Negatives ($FN$).
+
+**Definition: Precision and Recall**
+
+> **Precision** quantifies the proportion of positive identifications that were actually correct, whereas **Recall** (also known as Sensitivity or True Positive Rate) measures the proportion of actual positives that were correctly identified by the model.
+>
+\begin{align}
+\label{eqn:precision} Precision &= \frac{TP}{TP + FP} \\
+\label{eqn:recall} Recall &= \frac{TP}{TP + FN}
+\end{align}
+>
+> Here is the breakdown of the parameters in Equations \eqref{eqn:precision} and \eqref{eqn:recall}:
+>
+> - $TP$: True Positives (instances correctly predicted as the positive class).
+> - $FP$: False Positives (negative instances incorrectly predicted as positive).
+> - $FN$: False Negatives (positive instances incorrectly predicted as negative).^[These evaluation metrics were computed using `sklearn.metrics.precision_score` and `sklearn.metrics.recall_score` on our test set in the evaluation pipeline.]
+
+
+**Definition: F1 Score and AUC-ROC**
+
+> The **F1 Score** represents the harmonic mean of Precision and Recall. It provides a singular metric that balances the inherent trade-off between the two, which is particularly useful when optimizing models on imbalanced datasets.
+>
+\begin{align}
+\label{eqn:f1score} F1 &= 2 \times \frac{Precision \times Recall}{Precision + Recall}
+\end{align}
+
+## Hyperparameter setting
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.6cm}|p{4.2cm}|p{5.2cm}|p{2.6cm}|} 
+ \hline
+ \textbf{Hyperparameter} & \textbf{Code Name} & \textbf{Meaning} & \textbf{Search Space} \\ 
+ \hline
+ Inverse of regularisation strength & \texttt{C} & Controls L2 regularisation penalty to prevent overfitting in the high-dimensional feature space. & [0.01, 0.1, 1, 10] \\ 
+ \hline
+\end{tabular}
+\caption{Detailed definitions, code names, and search space of tuned hyperparameters for Logistic Regression.}
+\label{table:lr_appendix}
+\end{table}
+
+\vspace{1.5em}
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.6cm}|p{4.2cm}|p{5.2cm}|p{2.6cm}|} 
+ \hline
+ \textbf{Hyperparameter} & \textbf{Code Name} & \textbf{Meaning} & \textbf{Search Space} \\ 
+ \hline
+ Maximum tree depth & \texttt{max\_depth} & Limits the maximum depth of the classification tree. & [5, 10, 15, 20, None] \\ 
+ \hline
+ Min samples at a leaf node & \texttt{min\_samples\_leaf} & The minimum samples required to be maintained at a leaf node. & [1, 2, 5, 10] \\ 
+ \hline
+ Min samples to split & \texttt{min\_samples\_split} & The minimum samples required to split an internal node. & [2, 5, 10] \\ 
+ \hline
+\end{tabular}
+\caption{Detailed definitions, code names, and search space of tuned hyperparameters for Classification Trees.}
+\label{table:ct_appendix}
+\end{table}
+
+\vspace{1.5em}
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.6cm}|p{4.2cm}|p{5.2cm}|p{2.6cm}|} 
+ \hline
+ \textbf{Hyperparameter} & \textbf{Code Name} & \textbf{Meaning} & \textbf{Search Space} \\ 
+ \hline
+ Total number of trees & \texttt{n\_estimators} & The number of trees/estimators in the ensemble algorithm. & [100, 250, 500] \\ 
+ \hline
+ Maximum tree depth & \texttt{max\_depth} & Limits the maximum depth of the decision tree. & [10, 20, None] \\ 
+ \hline
+ Maximum number of features & \texttt{max\_features} & Controls feature subspace randomness when finding the best split. & ['sqrt', 'log2'] \\ 
+ \hline
+\end{tabular}
+\caption{Detailed definitions, code names, and search space of tuned hyperparameters for Random Forests.}
+\label{table:rf_appendix}
+\end{table}
+
+\vspace{1.5em}
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{|p{3.6cm}|p{4.2cm}|p{5.2cm}|p{2.6cm}|} 
+ \hline
+ \textbf{Hyperparameter} & \textbf{Code Name} & \textbf{Meaning} & \textbf{Search Space} \\ 
+ \hline
+ Learning rate & \texttt{learning\_rate} & Step size shrinkage used to prevent overfitting and optimise weights. & [0.05, 0.1, 0.2] \\ 
+ \hline
+ Column subsample ratio & \texttt{colsample\_bytree} & The subsample ratio of columns when constructing each tree. & [0.6, 0.8, 1.0] \\ 
+ \hline
+ Number of estimators & \texttt{n\_estimators} & The number of trees/estimators in the ensemble algorithm. & [100, 250, 500] \\ 
+ \hline
+ Maximum tree depth & \texttt{max\_depth} & Limits the maximum depth of the decision tree. & [4, 6, 8] \\ 
+ \hline
+\end{tabular}
+\caption{Detailed definitions, code names, and search space of tuned hyperparameters for XGBoost.}
+\label{table:xgb_appendix}
+\end{table}
+
+\vspace{1.5em}
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ |p{3.5cm}|p{3.8cm}|p{5.5cm}|p{2.8cm}| } 
+ \hline
+ \textbf{Hyperparameter} & \textbf{Code Name} & \textbf{Meaning} & \textbf{Search Space} \\ 
+ \hline
+ First hidden layer size & \texttt{module\_\_} \newline \texttt{hidden\_size\_1} & The number of neurons maintained consistently in the first layer. & [50, 64, 128] \\ 
+ \hline
+ Second hidden layer size & \texttt{module\_\_} \newline \texttt{hidden\_size\_2} & The number of neurons in the 2nd layer ('0' indicates layer exclusion). & [0, 16, 25, 50] \\ 
+ \hline
+ Third hidden layer size & \texttt{module\_\_} \newline \texttt{hidden\_size\_3} & The number of neurons in the 3rd layer ('0' indicates layer exclusion). & [0, 8, 16] \\ 
+ \hline
+ Learning rate & \texttt{lr} & Step size shrinkage used to prevent overfitting and optimise weights. & [0.0005, 0.001, \newline 0.005] \\ 
+ \hline
+ Activation functions & \texttt{module\_\_} \newline \texttt{activation} & Non-linear functions applied to hidden layers to capture complex relationships. & [\texttt{nn.ReLU}, \texttt{nn.LeakyReLU}, \texttt{nn.GELU}, \texttt{nn.Tanh}] \\ 
+ \hline
+ Dropout rate & \texttt{module\_\_} \newline \texttt{dropout\_rate} & The probability of dropping neurons to mitigate overfitting. & [0.3, 0.4, 0.5] \\ 
+ \hline
+ Weight decay & \texttt{optimiser\_\_} \newline \texttt{weight\_decay} & Apply L2 regularisation penalty to the optimiser's weights. & [0.0, 0.0001] \\ 
+ \hline
+\end{tabular}
+\caption{Detailed definitions, code names, and search space of tuned hyperparameters for MLP Model.}
+\label{table:mlp_appendix}
+\end{table}
+
+## Detailed explanation of SHAP value calculation
+
+\label{appendix:shap}
+
+**Definition: Shapley Value Calculation**
+
+> The calculation formula for the Shapley value $\phi_i$ of feature $i$ is defined to ensure a fair distribution of the prediction payout among all features. 
+>
+\begin{align}
+\label{eqn:shapley} \phi_i = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|!(M - |S| - 1)!}{M!} [f_x(S \cup \{i\}) - f_x(S)]
+\end{align}
+>
+> Here is the breakdown of the components in Equation \eqref{eqn:shapley}:
+>
+> - $N$: The set of all input features utilized by the model's feature space (e.g., demographic attributes, psychological metrics, and mandate indicators).
+> - $M$: The total number of features (i.e., the mathematical cardinality of the feature set $N$).
+> - $S$: A specific coalition (subset) of features formulated prior to the introduction of the target feature $i$. 
+> - $f_x(S)$: The conditional expectation of the model's prediction for a specific instance $x$, given only the subset of features $S$. This represents the model's baseline estimation when the information from the withheld features is integrated out.
+> - $f_x(S \cup \{i\}) - f_x(S)$: The marginal contribution of feature $i$ to the subset $S$. This isolates the explicit change in the model's predicted probability attributable exclusively to the inclusion of feature $i$.
+>
+> - $\frac{|S|!(M - |S| - 1)!}{M!}$: A combinatorial weighting coefficient representing the probability of the feature coalition $S$ forming. It accounts for all possible permutations in which features can be introduced to the model, thereby neutralizing sequence-dependent interaction effects and ensuring a mathematically fair distribution of the prediction payout.
+^[This calculation was generated using the `shap.TreeExplainer()` function on lines 776 - 830 of `ljj_term2.ipynb`, which processes the output from the XGBoost model.]
+
+**Guarantee local accuracy:**
+
+> After calculation, SHAP can guarantee local accuracy by expressing the model's prediction for a specific instance as the sum of a base value and the attribution of each individual feature. This relationship is defined as:
+>
+\begin{align}
+\label{eqn:additive} f(x) = \phi_0 + \sum_{i=1}^M \phi_i
+\end{align}
+>
+> The variables in Equation \eqref{eqn:additive} are explicitly defined as follows:
+>
+> - $f(x)$: The final output (prediction) of the model for a specific data instance $x$.
+> - $\phi_0$: The base value. This represents the expected model output (the average prediction) over the entire background dataset if no features were known.
+> - $M$: The total number of input features for the instance.
+> - $\phi_i$: The SHAP value (attribution) for the $i$-th feature. This quantifies exactly how much the $i$-th feature pushes the model's prediction higher or lower than the base value.
+
+
+This theorem explains exactly how our model arrives at a prediction for any individual respondent. It starts with a baseline average ($\phi_0$), which represents the overall expected prediction for the entire dataset. Then, it evaluates the specific impact of each feature for that person ($\phi_i$), represented by their individual `shap_values`. 
+
+If we take the baseline average and add all the specific SHAP values for a single respondent, the sum will perfectly match the model's final predicted probability $f(x)$. This exact mathematical match is crucial, as it proves that our SHAP analysis reliably explains the model's behaviour at the individual level.
+
+## Model Performance of reproduction
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ |l|c|c|c|c|c| } 
+ \hline
+ \textbf{Algorithm} & \textbf{AUC} & \textbf{Precision} & \textbf{Recall} & \textbf{Accuracy} & \textbf{F1 score} \\ 
+ \hline
+ \multicolumn{6}{|l|}{\textbf{Face mask behaviour before mandates}} \\
+ \hline
+ Logistic regression & 0.816 (0.004) & 0.480 (0.004) & 0.753 (0.007) & 0.723 (0.003) & 0.587 (0.005) \\
+ \hline
+ Decision tree & 0.811 (0.003) & 0.476 (0.006) & 0.773 (0.011) & 0.718 (0.006) & 0.589 (0.003) \\
+ \hline
+ Random forest & 0.853 (0.004) & 0.662 (0.009) & 0.570 (0.008) & 0.812 (0.004) & 0.613 (0.008) \\
+ \hline
+ XGBoost & \textbf{0.855 (0.005)} & 0.606 (0.008) & 0.664 (0.008) & 0.800 (0.005) & 0.634 (0.008) \\
+ \hline
+ \multicolumn{6}{|l|}{\textbf{Face mask behaviour during mandates}} \\
+ \hline
+ Logistic regression & 0.836 (0.001) & 0.880 (0.001) & 0.777 (0.002) & 0.768 (0.001) & 0.826 (0.001) \\
+ \hline
+ Decision tree & 0.848 (0.002) & 0.880 (0.001) & 0.828 (0.005) & 0.799 (0.003) & 0.853 (0.003) \\
+ \hline
+ Random forest & 0.890 (0.002) & 0.879 (0.002) & 0.914 (0.002) & 0.851 (0.002) & 0.896 (0.001) \\
+ \hline
+ XGBoost & \textbf{0.897 (0.002)} & 0.901 (0.002) & 0.873 (0.003) & 0.843 (0.003) & 0.887 (0.002) \\
+ \hline
+ \multicolumn{6}{|l|}{\textbf{General protective behaviour before mandates}} \\
+ \hline
+ Logistic regression & 0.731 (0.003) & 0.686 (0.002) & 0.692 (0.002) & 0.669 (0.002) & 0.689 (0.002) \\
+ \hline
+ Decision tree & 0.729 (0.004) & 0.691 (0.005) & 0.698 (0.012) & 0.674 (0.003) & 0.694 (0.005) \\
+ \hline
+ Random forest & \textbf{0.785 (0.004)} & 0.721 (0.003) & 0.743 (0.003) & 0.711 (0.003) & 0.732 (0.003) \\
+ \hline
+ XGBoost & 0.782 (0.003) & 0.727 (0.002) & 0.726 (0.003) & 0.710 (0.002) & 0.727 (0.002) \\
+ \hline
+ \multicolumn{6}{|l|}{\textbf{General protective behaviour during mandates}} \\
+ \hline
+ Logistic regression & 0.787 (0.002) & 0.864 (0.002) & 0.728 (0.004) & 0.721 (0.004) & 0.791 (0.003) \\
+ \hline
+ Decision tree & 0.778 (0.002) & 0.859 (0.002) & 0.743 (0.008) & 0.726 (0.004) & 0.797 (0.004) \\
+ \hline
+ Random forest & 0.843 (0.001) & 0.846 (0.001) & 0.883 (0.003) & 0.800 (0.002) & 0.864 (0.002) \\
+ \hline
+ XGBoost & \textbf{0.850 (0.002)} & 0.876 (0.002) & 0.829 (0.002) & 0.792 (0.001) & 0.852 (0.001) \\
+ \hline
+\end{tabular}
+\caption{Performance metrics of predictive models across different scenarios, with the standard error (SE) in parentheses. Results are extracted from the best model identified by GridSearchCV, and was refitted on the entire training set. Bold values show the optimal models based on largest AUC.}
+\label{tab:model_performance}
+\end{table}
+
+\begin{table}[ht!]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{ |l|c|c|c|c|c| } 
+ \hline
+ \textbf{Algorithm} & \textbf{AUC} & \textbf{Precision} & \textbf{Recall} & \textbf{Accuracy} & \textbf{F1 score} \\ 
+ \hline
+ \multicolumn{6}{|l|}{\textbf{Face mask behaviour before mandates}} \\
+ \hline
+ \quad Random forest & \textbf{0.863} & 0.652 & 0.613 & 0.819 & 0.632 \\
+ \hline
+ \quad XGBoost & \textbf{0.863} & 0.603 & 0.711 & 0.808 & 0.653 \\
+ \hline
+ \multicolumn{6}{|l|}{\textbf{Face mask behaviour during mandates}} \\
+ \hline
+ \quad Random forest & 0.882 & 0.874 & 0.918 & 0.847 & 0.895 \\
+ \hline
+ \quad XGBoost & \textbf{0.885} & 0.894 & 0.882 & 0.841 & 0.888 \\
+ \hline
+ \multicolumn{6}{|l|}{\textbf{General protective behaviour before mandates}} \\
+ \hline
+ \quad Random forest & \textbf{0.793} & 0.724 & 0.751 & 0.717 & 0.737 \\
+ \hline
+ \quad XGBoost & 0.792 & 0.737 & 0.745 & 0.724 & 0.741 \\
+ \hline
+ \multicolumn{6}{|l|}{\textbf{General protective behaviour during mandates}} \\
+ \hline
+ \quad Random forest & 0.841 & 0.849 & 0.887 & 0.802 & 0.868 \\
+ \hline
+ \quad XGBoost & \textbf{0.849} & 0.877 & 0.837 & 0.796 & 0.857 \\
+ \hline
+\end{tabular}
+\caption{Final evaluation metrics on the independent test set across different scenarios. Bold values show the optimal models based on largest AUC.}
+\label{tab:test_performance}
+\end{table}

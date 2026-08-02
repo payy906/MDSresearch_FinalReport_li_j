@@ -1,0 +1,277 @@
+---
+title: "Research on Driving Factors of COVID-19 Protective Behaviours in Australia"
+shorttitle: "Driving Factors of COVID-19 Protective Behaviours"
+author: Jiajun Li
+output:
+  beamer_presentation:
+    theme: "Copenhagen"
+    colortheme: "rose"
+bibliography: Refs_li_j.bib
+suppress-bibliography: true
+header-includes:
+  - \setbeamertemplate{page number in head/foot}[totalframenumber]
+date: "2026-06-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+
+- Personal protective behaviours played a crucial role.
+
+- Understanding main drivers is important for making public health policy.
+
+
+# Background
+
+
+
+## Multiple Factors Shape Behaviour
+
+Protective behaviours are influenced by
+\footnotesize
+
+- Demographic
+- Psychological
+- Policy factors
+- Vaccination
+- COVID-19 case numbers
+- Other features
+
+# Background
+
+## Drivers of mask mandates and protective behaviour changes in Australia
+\footnotesize
+
+- Protective behaviours are not fixed
+- The face mask mandates may influence the drivers of protective behaviours in Australia. [@Ryan2025, p.8-13]
+
+## MLP has shown potential in structured data
+\footnotesize
+
+- MLP(Multi-Layer Perceptron)s can achieve competitive or even stronger performance on structured data. [@DBLP:journals/corr/abs-2106-11189, p.9-10]
+
+# Research Questions
+
+- How do vaccination rates and COVID-19 case numbers influence the protective behaviours in Australia?
+
+- How does the performance of deep learning models compare to traditional models in predicting protective behaviours?
+
+
+# Data-YouGov Behaviour Tracker
+
+Imperial College London YouGov Behaviour Tracker dataset
+\footnotesize
+
+- Demographic and psychological factors (such as gender and age)
+
+- protective behaviours (such as mask wearing and social distancing)
+
+- Comorbidities
+
+- other features
+
+# Data-Oxford COVID-19 Government Response Tracker
+
+Oxford COVID-19 Government Response Tracker dataset
+\footnotesize
+
+- The state level response policies of governments around the world aimed at preventing the spread of COVID-19 from March 2020 to January 2023.
+
+# Data-Pandemic Case number
+
+\footnotesize
+
+Consolidated dataset for COVID-19 case numbers, which compiles and verifies COVID-19
+case data from Australian federal, state, and territory health departments. [@Covid19dataStates2023]
+\begin{figure}
+\centering
+\includegraphics[width=0.9\textwidth]{f1.png}
+\label{f:TRex}
+\end{figure}
+
+# Data-Vaccination Data
+\footnotesize
+
+Vaccine dataset compiled by a third-party team to match the timing and states of the YouGov survey. [@Covid19dataVaccines2023]
+\begin{figure}
+\centering
+\includegraphics[width=0.9\textwidth]{f2.png}
+\label{f:TRex}
+\end{figure}
+
+# Preprocessing
+
+## Government Mandates
+
+
+- Calculated the daily updated 14-day average of each state's index.
+
+- Rolling average of a certain state reached 3 was considered entered mandate.
+
+## Removal of Features with High Missingness
+
+
+- 10,781 as threshold [@Ryan2025, p.3]
+
+- Over threshold were dropped from the dataset. 
+
+# Preprocessing
+
+## Repairing Data Gaps Caused by Survey Changes
+\footnotesize
+
+- YouGov modified the survey between February 10 and October 18, 2021. 
+- Identified this time window based on dates. 
+- Filled in with independent ‘N/A’ categories.
+
+# Preprocessing
+
+## Experiment on handling structural missing values
+Compared three ways on handling structural missing values:
+\footnotesize
+
+- NAN Version: Retaining np.nan
+- string Version: Imputing an "N/A" category
+- Drop version: Dropping features directly
+
+## Results
+
+\begin{figure}
+\centering
+\includegraphics[width=0.5\textwidth]{f7.png}
+\label{f:TRex}
+\end{figure}
+
+# Preprocessing
+
+## Predictive Variables
+
+Calculated the two-week average and converted to binary using 4 as the cutoff [@Ryan2025, p.4] for the following features.
+\footnotesize
+
+- Mask wearing
+- Protective behaviours 
+- Protective behaviours other than masks.
+
+# Something interesting
+- Protective behaviours track closely with new cases during specific periods.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\textwidth]{f9.png}
+\label{f:TRex}
+\end{figure}
+
+# Model Training Strategy - Overresampling
+
+- This study introduced the random over sampler technique.
+- Randomly duplicate minority samples to balance the classes and reduce predictive bias.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{f5.png}
+\label{f:TRex}
+\end{figure}
+
+
+# Model Training Strategy - Cross Validation
+- A single validation set is highly susceptible to the randomness of the initial data split. 
+- To prevent overfitting during model training, this study implemented a 5-fold cross validation.
+
+## How 5-Fold Works
+
+- Split: Divide the dataset into 5 equal parts (folds).
+- Train & Test: Train the model on 4 parts, then test on the 1 remaining part.
+- Repeat: Rotate 5 times. 
+- Final Score: Average the 5 results for a robust evaluation.
+
+# Model Training Strategy - Evaluation metrics
+
+
+## Main metric
+AUC-ROC serves as the primary metric for tuning and model comparison.
+
+## Further performance comparison
+
+These metrics offer deeper insights beyond AUC-ROC
+\footnotesize
+
+- Precision
+- Recall
+- F1 score
+
+
+
+# Models
+
+## Logistic Regression
+\footnotesize
+
+- Regularization strength
+- Regularization type
+
+## Classification Trees
+\footnotesize
+
+- Maximum depth of the tree
+- Minimum samples per leaf
+- Minimum samples to split a node
+
+## XGBoost
+\footnotesize
+
+- Learning_rate
+- Number of trees
+- Maximum depth of each tree
+- Number of features per split
+
+# Multilayer Perceptron
+\begin{figure}
+\centering
+\includegraphics[width=1\textwidth]{f6.png}
+\label{f:TRex}
+\end{figure}
+
+
+# Interpretation
+
+- Method: SHAP (SHapley Additive exPlanations) to the best-performing model.
+- Purpose: To open the "black box" and interpret how the model makes decisions.
+
+## How SHAP Works
+
+- The "Game": Treats the model's prediction as a team game, where each feature is a "player".
+- The Contribution: Calculates exactly how much credit each player deserves for the final score, compared to an average baseline.
+- The Impact: Reveals not just the magnitude, but also the direction.
+
+# Results- Model Comparison
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\textwidth]{f8.png}
+\label{f:TRex}
+\end{figure}
+
+\footnotesize
+
+- Logistic Regression performed the worst.
+
+- MLP performed only slightly better than the Decision Tree.
+
+- The best-performing model was XGBoost.
+
+# Future
+
+## Influence of Vaccination and COVID-19 Case Numbers
+
+- Investigate feature importance.
+- Introduce more detailed data (eg. specific vaccine types & exact locations of new cases).
+
+## Deep Learning vs. Traditional Model Performance
+
+- Conduct comprehensive model tuning.
+- Expand the scope of the research to include other countries.

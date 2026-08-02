@@ -1,0 +1,45 @@
+---
+title: "How to include references"
+author: "Your name"
+date: "2026-03-18"
+output:
+  pdf_document:
+      number_sections: false
+bibliography: Refs_li_j.bib
+geometry: "top=20mm, left=10mm, right=10mm, bottom=20mm"
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+You need a `*.bib` file, then you include it in the YAML header. These are called `BibTex` files. Here I've made one called `TestBibFile.bib`.
+
+## What goes in your BibTex file
+
+See the `TestBibFile.bib` file itself to get more details, but basically you need
+```{}
+@<type>{<reference name>,
+author = {<author name>},
+year = {<year of publication>}
+}
+```
+
+The `<type>` can be lots of different things (the list is here https://www.bibtex.com/e/entry-types/), but the most common ones are
+
+- `@book`
+- `@article`
+- `@inproceedings`
+- `@misc` (for webpages)
+
+Then you cite a reference by using `[@<reference name>, <page range>]`, eg. [@Guo2024, p.12071-12083] 
+# How to generate the bibliography
+
+Your bibliography will be automatically generated from all the citations you include. Just put the code `<div id="refs"></div>` after your References title. See below.
+
+# References
+
+<div id="refs"></div>
